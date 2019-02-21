@@ -1,2 +1,2 @@
 # LibMaps
-Map tables library add-on for the QuestMap2 project
+A standalone library add-on to create and maintain Maps tables for the QuestMap2 project.
