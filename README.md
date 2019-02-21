@@ -1,2 +1,2 @@
 # LibMaps
-Map tables library add-on for the QuestMap 2 project
+Map tables library add-on for the QuestMap2 project
