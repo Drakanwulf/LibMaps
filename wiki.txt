@@ -1,0 +1,113 @@
+# LibMaps
+LibMaps is a standalone, library add-on to create and/or update ESO Maps information tables. You must be running the Wrathstone API (100026), or greater, for this add-on to function correctly.
+## What It Is
+LibMaps uses game API functions to automatically create and maintain ESO Maps information tables to eliminate the rather tedious and time-consuming manual updates to hardcoded LibMaps information reference tables everytime the game added more maps and/or changed its existing maps. 
+
+"Standalone" means that LibMaps should not be embedded. Please load only one instance of LibMaps from the "/Addons" directory and use the "##DependsOn:" directive to instruct the game to verify that a LibMaps exists before it loads your add-on. 
+Do NOT embed an LibMaps folder within your add-on!
+## What It Does
+LibMaps uses existing game API functions and will use any new Maps information retrieval API functions in the future to automatically create and maintain ESO Maps information tables rather than to manually update hardcoded LibMaps information tables everytime the game added more maps and/or changed its existing maps. 
+LibMaps iterates through all the valid Map indices, from 1 to the GetNumMaps() return value, creating or updating several Maps information tabendant of the ESOUI LibStub (r5) add-on which was derived from the World of Warcraft (WoW) LibStub add-on. Its structure should be familiar to anyone who knows how LibStub works; however, LibMaps does some things differently than LibStub does them and LibMaps does some things that LibStub does not do. Hawkeye1889 and I would like to thank everyone who helped us develop, test, and document this add-on.
+iterates through all the valid Map indices, from 1 to the GetNumMaps() return value, creating or updating several Maps information tabendant of the ESOUI LibStub (r5) add-on which was derived from the World of Warcraft (WoW) LibStub add-on. Its structure should be familiar to anyone who knows how LibStub works; however, LibMaps does some things differently than LibStub does them and LibMaps does some things that LibStub does not do. Hawkeye1889 and I would like to thank everyone who helped us develop, test, and document this add-on.
+
+The premise LibMaps bases its decisions upon is the presence or absence of global control entries that it creates on 
+behalf of the add-ons that it bootstraps; therefore, any add-on whose addonName (e.g. MAJOR) matches the addonName of a global control entry (e.g. _G[MAJOR]) is, by default, a potential attempt by the game to load a duplicate of an existing add-on. LibMaps uses the number from the AddOnVersion: directive in the Manifest file to determine what is, or is not, a duplicate.
+
+Although LibMaps is small, it contains bootstrapping code to load its Maps tables plus several API functions to efficiently retrieve the information contained within said tables.
+## History:
+* LibMaps has no ancestors. It is the result of the cooperation and assistance Hawkeye 1889 and Drakanwulf received from the add-on authors who support the game. We would like to take this opportunity to thank them.
+## API Functions:
+### Definitions:
+* Duplicate := Any add-on where the addonName in a control entry (e.g. _G["addonName"]) matches the addonName in the code (e.g. "addonName" or MAJOR). AddOnVersion numbers determine what happens next when duplicates are found.
+* MAJOR := Contains the "addonName" of this add-on enclosed in quotation marks.
+* MINOR := Contains the AddOnVersion number for this add-on. 
+_Note: This number must exist in the add-on code and it must be the same as the number in the AddOnVersion: directive in the manifest file._
+### LibMaps:Get( "addonName" )
+If a global control entry for "addonName" exists (e.g. _G[MAJOR]), this function accesses the manifest table data in the control entry to return the values for "addonName" and "addonVersion". _Use this function to detect duplicate start up attempts when the add-on needs to determine whether to discard, fail, or continue executing add-on code._
+#### Input:
+addonName := string, name of the add-on (e.g. "LibMaps"). Between 1 and 64 alphanumeric characters long.
+#### Returns:
+nil, nil := These return values indicate that a global control entry for "addonName" does not exist.
+
+addon, version := These return values indicate that the game is attempting to start up "addonName" again.
+
+* addon := Contains a pointer to the global control entry for "addonName".
+* version := Contains the AddOnVersion number for the duplicate copy of "addonName". The add-on code must decide whether to: 
+     * discard or fail the duplicate (code = control entry).
+     * let the duplicate continue executing (code > control entry).
+     * fail the duplicate (code < control entry).
+### LibMaps:New( "addonName", version )
+This function creates new or resets existing global control entries (e.g. _G[MAJOR]) for a given addonName. 
+The function creates new control entries whenever an add-on has never been started before; resets and reloads 
+existing control entries whenever the AddOnVersion number in MINOR is greater than the AddOnVersion number in the 
+control entry; and fails all other start up attempts.
+#### Input:
+addon := string, name of the add-on (e.g. "LibMaps"). Between 1 and 64 alphanumeric characters long.
+
+version := positive integer between 1 and 2,147,483,647.  There are limited restrictions on the integer value; 
+however, there may be unexpected and/or undesired side-effects if the "version" number is not greater than its 
+predecessor.
+#### Returns:
+nil, nil := These return values indicate that a global control entry for "addonName" already exists. LibMaps refuses
+	to start up add-ons with AddOnVersion numbers that are older than (lesser values) or duplicates of (equal values)
+	the AddOnVersion number in this copy of the add-on code (e.g. MINOR).
+
+addon, version := These return values indicate that LibMaps has successfully created or updated the control entry 
+	for "addonName".
+* addon := Contains a pointer to the global control entry for "addonName".
+* version := Contains the AddOnVersion number in the control entry for "addonName".
+## Control Entry Layout
+This is an example of a generic LibMaps control entry for any add-on. The contents in the comment fields are my informational asides and opinions.
+```
+_G["addonName"] = {
+	addOnVersion,                    	-- AddOnVersion from the code (e.g. MINOR)
+	index,					-- Ordinal position of this add-on in the AddOnManager's add-on table
+	manifest = {
+		-- These values are returned from API functions
+		fileName,				-- The file/folder/manifest name
+		filePath,				-- User Path to the add-on file/folder (new as of 100026)
+		isEnabled,				-- ESO boolean value
+		loadState,				-- ESO load state (i.e. loaded; not loaded)
+		isOutOfDate,				-- ESO boolean value
+		-- These values come from the manifest file directives
+		addOnVersion,				-- From the AddonVersion: directive (new as of 100026)
+		rawAuthor,				-- From the Author: directive
+		rawTitle,				-- From the Title: directive
+		description,				-- From the Description: directive
+		author,					-- "rawAuthor" sans any special characters
+		title,					-- "rawTitle" sans any special characters
+	},
+	-- Fields I wish were retrievable from the manifest file
+	-- OODVersion = AM:GetAPIVersion( i ),			-- The API number from the manifest file...
+}
+```
+## Examples
+The code illustrates how the LibMaps stand-alone library add-on uses LibMaps return values to either discard, process or fail start up attempts. The code has chosen to fail all duplicate LibMaps start up attempts because trapping these mistakes is one way to determine who was doing what and when which should give us the why. Your code has the option to use other solutions (e.g. the commented if/else statements) to discard, process, or dispose of duplicate add-on start up attempts.
+```
+--[[--------------------------------------------------------------------------------------------------------------------------------
+Local variables shared by multiple functions within this add-on.
+----------------------------------------------------------------------------------------------------------------------------------]]
+local strformat = string.format
+
+--[[--------------------------------------------------------------------------------------------------------------------------------
+Same variables for LibMaps as for LibStub except MINOR must match the AddOnVersion number in the manifest.
+----------------------------------------------------------------------------------------------------------------------------------]]
+local MAJOR, MINOR = "LibMaps", 100
+
+--[[--------------------------------------------------------------------------------------------------------------------------------
+Bootstrap code to trap duplicate start up attempts and to either create or update the control entry for this add-on.
+----------------------------------------------------------------------------------------------------------------------------------]]
+local addon, version = LibMaps:Get( MAJOR )
+if addon then
+	assert( version < MINOR, "LibMaps: Add-on is already loaded. Do NOT load LibMaps multiple times!" )
+end
+
+local addon, version = LibMaps:New( MAJOR, MINOR )
+assert( addon, "LibMaps: LibMaps failed to create a control entry!" )
+
+--[[--------------------------------------------------------------------------------------------------------------------------------
+Define local variables and tables including a "defaults" Saved Variables table.
+----------------------------------------------------------------------------------------------------------------------------------]]
+... And LibMaps initialization continues on from here...
+```
+
