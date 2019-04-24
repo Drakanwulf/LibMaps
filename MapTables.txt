@@ -1,9 +1,10 @@
 ﻿## Title: MapTables
-## Description: A standalone support add-on to create and maintain Map reference and cross-reference tables.
-## Version: 1.0.0
-## AddOnVersion: 100
+## Description: A standalone support add-on to create and maintain Map information, reference and cross-reference tables.
 ## APIVersion: 100026 100027
+## AddOnVersion: 100
+## Version: 1.0.0
 ## DependsOn: AddonStub LibGPS2
+## IsLibrary: true
 ## SavedVariables: EU_SavedVars NA_SavedVars PTS_SavedVars
 ## Contributors: Votan, sirinsidiator, silvereyes, baertram, slippycheese, manavortex, solinur, kyoma, and many more.
 ## Author: Drakanwulf & Hawkeye1889
