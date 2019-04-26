@@ -5,6 +5,7 @@
 ## Version: 1.0.0
 ## DependsOn: AddonStub LibGPS2
 ## SavedVariables: EU_SavedVars NA_SavedVars PTS_SavedVars
+## IsLibrary: true
 ## Contributors: Votan, sirinsidiator, silvereyes, baertram, slippycheese, manavortex, solinur, kyoma, and many more.
 ## Author: Drakanwulf & Hawkeye1889
 
