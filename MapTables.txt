@@ -3,7 +3,7 @@
 ## APIVersion: 100026 100027
 ## AddOnVersion: 100
 ## Version: 1.0.0
-## DependsOn: AddonStub LibGPS2
+## DependsOn: AddonStub LibGPS
 ## SavedVariables: EU_SavedVars NA_SavedVars PTS_SavedVars
 ## IsLibrary: true
 ## Contributors: Votan, sirinsidiator, silvereyes, baertram, slippycheese, manavortex, solinur, kyoma, and many more.
