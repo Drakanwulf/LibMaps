@@ -1,4 +1,4 @@
---[[################################################################################################################################
+--[[###############################################################################################################################
 
 MapTables - A standalone add-on to create and maintain Map tables for the QuestMap2 project
 	by Drakanwulf and Hawkeye1889
@@ -8,44 +8,37 @@ any game megaserver.
 
 WARNING: This add-on is a standalone library. Do NOT embed its folder within any other add-on!
 
-################################################################################################################################--]]
+###############################################################################################################################--]]
 
---[[--------------------------------------------------------------------------------------------------------------------------------
+--[[-------------------------------------------------------------------------------------------------------------------------------
 Local variables shared by multiple functions within this add-on.
-----------------------------------------------------------------------------------------------------------------------------------]]
+---------------------------------------------------------------------------------------------------------------------------------]]
 local strformat = string.format
 
---[[--------------------------------------------------------------------------------------------------------------------------------
-Same variables for AddonStub as for LibStub except MINOR must match the AddOnVersion number in the manifest.
-----------------------------------------------------------------------------------------------------------------------------------]]
-local MAJOR, MINOR = "MapTables", 100
+--[[-------------------------------------------------------------------------------------------------------------------------------
+Bootstrap code to load this add-on.
+---------------------------------------------------------------------------------------------------------------------------------]]
+local ADDON_NAME = "MapTables"
+assert( not _G[ADDON_NAME], ADDON_NAME.. ": This add-on is already loaded. Do NOT load it multiple times!" )
+ 
+local addon = {}
+_G[ADDON_NAME] = addon
+assert( _G[ADDON_NAME], ADDON_NAME.. ": the game failed to create a control entry!" )
 
---[[--------------------------------------------------------------------------------------------------------------------------------
-Bootstrap code to either load or update this add-on.
-----------------------------------------------------------------------------------------------------------------------------------]]
-local addon, version
-addon, version = AddonStub:Get( MAJOR )
-if addon then
-	assert( version < MINOR, "MapTables: This add-on is already loaded. Do NOT load MapTables multiple times!" )
-end
-
-addon, version = AddonStub:New( MAJOR, MINOR )
-assert( addon, "MapTables: AddonStub failed to create a control entry!" )
-
---[[--------------------------------------------------------------------------------------------------------------------------------
+--[[-------------------------------------------------------------------------------------------------------------------------------
 Define local variables and tables including a "defaults" Saved Variables table.
-----------------------------------------------------------------------------------------------------------------------------------]]
--- Create empty Maps reference tables
+---------------------------------------------------------------------------------------------------------------------------------]]
+-- Create empty Map information, reference, and cross-reference tables
 local coordByIndex = {}			-- Global x,y coordinates (topleft corner) by mapIndex
 local indexByMapId = {}			-- Map Index cross-reference by mapId
 local indexByName = {}			-- Mapindex by Map Name
-local infoByIndex = {}			-- General information by mapIndex
+local infoByIndex = {}			-- Map information by mapIndex
 local mapIdByIndex = {}			-- Map Identifier cross-reference by mapIndex
 local mapIdByName = {}			-- Map Identifier by mapName
 local nameByMapId = {}			-- Map Name by mapId
 local zoneIdByIndex = {}		-- Zone Identifier cross-reference by mapIndex
 
--- This Saved Variables "defaults" table contains pointers to all of the Maps reference tables
+-- This Saved Variables "defaults" table contains pointers to all the Maps tables
 local defaults = {
 	addonVersion = 0,				-- AddOnVersion value in use the last time these tables were loaded
 	apiVersion = 0,					-- ESO API Version in use the last time these tables were loaded
@@ -60,11 +53,11 @@ local defaults = {
 	zidinx = zoneIdByIndex,
 }
 
---[[--------------------------------------------------------------------------------------------------------------------------------
+--[[-------------------------------------------------------------------------------------------------------------------------------
 Obtain a local link to "LibGPS2" and define a measurements table for its use.
-----------------------------------------------------------------------------------------------------------------------------------]]
+---------------------------------------------------------------------------------------------------------------------------------]]
 local GPS = LibStub:GetLibrary( "LibGPS2", SILENT )
-assert( GPS, "MapTables: LibStub refused to create a link to LibGPS2!" )
+assert( GPS, ADDON_NAME.. ": LibStub refused to create a link to LibGPS2!" )
 
 local measurement = {
 	scaleX = 0,
@@ -75,9 +68,9 @@ local measurement = {
 	zoneIndex = 0,
 }
 
---[[--------------------------------------------------------------------------------------------------------------------------------
+--[[-------------------------------------------------------------------------------------------------------------------------------
 Local functions to load the Maps reference tables.
-----------------------------------------------------------------------------------------------------------------------------------]]
+---------------------------------------------------------------------------------------------------------------------------------]]
 -- Loads the data for one Map into the reference tables
 local function LoadOneMap( mdx: number )			-- The Map Index of this Map
 	-- Get the reference information for this mapIndex
@@ -140,16 +133,16 @@ local function UpdateAllMaps( tmax: number )	-- tmax := The number of maps in th
 	end
 end
 
---[[--------------------------------------------------------------------------------------------------------------------------------
+--[[-------------------------------------------------------------------------------------------------------------------------------
 The "OnAddonLoaded" function reads the saved variables table (sv) from the saved variables file, "...\SavedVariables\MapTables.lua"
 if the file exists; otherwise, the function loads partially filled, default tables into the "sv" variable. Finally, the function
 links everything in its local tables to their equivalent MapTables table entries.
-----------------------------------------------------------------------------------------------------------------------------------]]
+---------------------------------------------------------------------------------------------------------------------------------]]
 local function OnAddonLoaded( event, name )
-	if name ~= MAJOR then
+	if name ~= ADDON_NAME then
 		return
 	end
-	EVENT_MANAGER:UnregisterForEvent( MAJOR, EVENT_ADD_ON_LOADED )
+	EVENT_MANAGER:UnregisterForEvent( ADDON_NAME, EVENT_ADD_ON_LOADED )
 
 	-- Define megaserver constants and a saved variables filenames table. Default is the PTS megaserver.
 	local SERVER_EU = "EU Megaserver" 
@@ -177,12 +170,12 @@ local function OnAddonLoaded( event, name )
 	zoneIdByIndex = sv.zidinx
 
 	-- Wait for a player to become active; LibGPS2 needs this
-	EVENT_MANAGER:RegisterForEvent( MAJOR, EVENT_PLAYER_ACTIVATED,
+	EVENT_MANAGER:RegisterForEvent( ADDON_NAME, EVENT_PLAYER_ACTIVATED,
 		function( event, initial )
-			EVENT_MANAGER:UnregisterForEvent( MAJOR, EVENT_PLAYER_ACTIVATED )
+			EVENT_MANAGER:UnregisterForEvent( ADDON_NAME, EVENT_PLAYER_ACTIVATED )
 		end
 	)
-	assert( GPS:IsReady(), "MapTables: LibGPS2 cannot function until a player is active!" )
+	assert( GPS:IsReady(), ADDON_NAME.. ": LibGPS2 cannot function until a player is active!" )
 
 	-- Save wherever we are in the world
 	SetMapToPlayerLocation()					-- Set the current map to wherever we are in the world
@@ -232,7 +225,7 @@ local function OnAddonLoaded( event, name )
 	_G[savedVarsFile] = sv
 end
 
---[[--------------------------------------------------------------------------------------------------------------------------------
+--[[-------------------------------------------------------------------------------------------------------------------------------
 MapTables public API function definitions. MapTables does not duplicate any of the game API functions listed below:
 
 The game API documentation defines these Map Index API functions.
@@ -250,7 +243,9 @@ MapTables uses the "SetMapToMapListIndex()" game API function to traverse games 
 	Line 10251: * GetCurrentMapIndex()
 	Line 10254: * GetCurrentMapId()
 	Line 10312: * GetMapName()
-----------------------------------------------------------------------------------------------------------------------------------]]
+
+---------------------------------------------------------------------------------------------------------------------------------]]
+
 -- Get the content type for this map
 function MapTables:GetContentType( mapIndex: number )
 	return infoByIndex[mapIndex].content or nil
@@ -296,8 +291,7 @@ function MapTables:GetZoneId( mapIndex: number )
 	return zoneIdByIndex[mapIndex] or nil
 end
 
---[[--------------------------------------------------------------------------------------------------------------------------------
-And the last thing we do in every add-on is to wait for ESO to notify us that all our modules and dependencies have been loaded.
-----------------------------------------------------------------------------------------------------------------------------------]]
-EVENT_MANAGER:RegisterForEvent( MAJOR, EVENT_ADD_ON_LOADED,	OnAddonLoaded )
-
+--[[-------------------------------------------------------------------------------------------------------------------------------
+And the last thing we do in this add-on is to wait for ESO to notify us that our add-on modules and support add-ons (i.e. libraries) have been loaded.
+---------------------------------------------------------------------------------------------------------------------------------]]
+EVENT_MANAGER:RegisterForEvent( ADDON_NAME, EVENT_ADD_ON_LOADED, OnAddonLoaded )
