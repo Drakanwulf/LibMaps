@@ -1,6 +1,6 @@
 --[[###############################################################################################################################
 
-MapTables - A standalone add-on to create and maintain Map tables for the QuestMap2 project
+MapTables - A standalone support add-on that creates and maintains Map information, reference and cross-reference tables.
 	by Drakanwulf and Hawkeye1889
 
 A standalone support add-on to create and initialize or to retrieve and update Map information for all accounts and characters on 
