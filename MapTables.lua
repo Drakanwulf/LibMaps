@@ -13,15 +13,14 @@ WARNING: This add-on is a standalone library. Do NOT embed its folder within any
 --[[-------------------------------------------------------------------------------------------------------------------------------
 Local variables shared by multiple functions within this add-on.
 ---------------------------------------------------------------------------------------------------------------------------------]]
-local strformat = string.format
+local ADDON_NAME = "MapTables"
+local addon = {}
 
 --[[-------------------------------------------------------------------------------------------------------------------------------
 Bootstrap code to load this add-on.
 ---------------------------------------------------------------------------------------------------------------------------------]]
-local ADDON_NAME = "MapTables"
 assert( not _G[ADDON_NAME], ADDON_NAME.. ": This add-on is already loaded. Do NOT load it multiple times!" )
  
-local addon = {}
 _G[ADDON_NAME] = addon
 assert( _G[ADDON_NAME], ADDON_NAME.. ": the game failed to create a control entry!" )
 
