@@ -1,8 +1,8 @@
 ﻿## Title: MapTables
 ## Description: A standalone support add-on that creates and maintains Map information, reference and cross-reference tables.
 ## APIVersion: 100026 100027
-## AddOnVersion: 110
-## Version: 1.1.0
+## AddOnVersion: 111
+## Version: 1.1.1
 ## DependsOn: LibGPS
 ## SavedVariables: MapTables_EU_Vars MapTables_NA_Vars MapTables_PTS_Vars
 ## IsLibrary: true
