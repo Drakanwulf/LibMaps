@@ -1,6 +1,6 @@
 --[[###############################################################################################################################
 
-MapTables - A standalone support add-on that creates and maintains Map information, reference and cross-reference tables.
+MapTables - A standalone add-on to create and maintain Map tables for the QuestMap2 project
 	by Drakanwulf and Hawkeye1889
 
 A standalone support add-on to create and initialize or to retrieve and update Map information for all accounts and characters on 
@@ -9,6 +9,11 @@ any game megaserver.
 WARNING: This add-on is a standalone library. Do NOT embed its folder within any other add-on!
 
 ###############################################################################################################################--]]
+
+--[[-------------------------------------------------------------------------------------------------------------------------------
+Local variables shared by multiple functions within this add-on.
+---------------------------------------------------------------------------------------------------------------------------------]]
+local strformat = string.format
 
 --[[-------------------------------------------------------------------------------------------------------------------------------
 Bootstrap code to load this add-on.
@@ -145,9 +150,9 @@ local function OnAddonLoaded( event, name )
 	local SERVER_PTS = "PTS"
 
 	local savedVarsNameTable = {
-		[SERVER_EU] = "EU_SavedVars",
-		[SERVER_NA] = "NA_SavedVars",
-		[SERVER_PTS] = "PTS_SavedVars",
+		[SERVER_EU] = "MapTables_EU_Vars",
+		[SERVER_NA] = "MapTables_NA_Vars",
+		[SERVER_PTS] = "MapTables_PTS_Vars",
 	}	 	
 
 	-- Retrieve the saved variables data or load their default values

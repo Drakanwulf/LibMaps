@@ -4,7 +4,7 @@
 ## AddOnVersion: 110
 ## Version: 1.1.0
 ## DependsOn: LibGPS
-## SavedVariables: EU_SavedVars NA_SavedVars PTS_SavedVars
+## SavedVariables: MapTables_EU_Vars MapTables_NA_Vars MapTables_PTS_Vars
 ## IsLibrary: true
 ## Contributors: Votan, sirinsidiator, silvereyes, baertram, slippycheese, manavortex, solinur, kyoma, and many more.
 ## Author: Drakanwulf & Hawkeye1889
