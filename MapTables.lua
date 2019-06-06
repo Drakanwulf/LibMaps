@@ -1,6 +1,6 @@
 --[[###############################################################################################################################
 
-MapTables - A standalone add-on to create and maintain Map tables for the QuestMap2 project
+MapTables - A standalone support add-on to create and maintain Map tables
 	by Drakanwulf and Hawkeye1889
 
 A standalone support add-on to create and initialize or to retrieve and update Map information for all accounts and characters on 
@@ -13,8 +13,8 @@ WARNING: This add-on is a standalone library. Do NOT embed its folder within any
 --[[-------------------------------------------------------------------------------------------------------------------------------
 Local variables shared by multiple functions within this add-on.
 ---------------------------------------------------------------------------------------------------------------------------------]]
-local ADDON_NAME = "MapTables"
-local addon = {}
+local ADDON_NAME = "MapTables"			-- The name of this add-on
+local addon = {}						-- Every add-on control entry begins as an empty table
 
 --[[-------------------------------------------------------------------------------------------------------------------------------
 Bootstrap code to load this add-on.
@@ -27,24 +27,28 @@ assert( _G[ADDON_NAME], ADDON_NAME.. ": the game failed to create a control entr
 --[[-------------------------------------------------------------------------------------------------------------------------------
 Define local variables and tables including a "defaults" Saved Variables table.
 ---------------------------------------------------------------------------------------------------------------------------------]]
--- Create empty Map information, reference, and cross-reference tables
+-- Map information, reference, and cross-reference tables by mapIndex and mapId
 local coordByIndex = {}			-- Global x,y coordinates (topleft corner) by mapIndex
-local indexByMapId = {}			-- Map Index cross-reference by mapId
+local indexById = {}			-- Map Index cross-reference by mapId
 local indexByName = {}			-- Mapindex by Map Name
 local infoByIndex = {}			-- Map information by mapIndex
 local mapIdByIndex = {}			-- Map Identifier cross-reference by mapIndex
 local mapIdByName = {}			-- Map Identifier by mapName
-local nameByMapId = {}			-- Map Name by mapId
+local nameById = {}				-- Map Name by mapId
+
+-- Zone information by mapIndex. This top-down view is how MapTables sees the world's Zone maps
 local zoneIdByIndex = {}		-- Zone Identifier cross-reference by mapIndex
 
 -- This Saved Variables "defaults" table contains pointers to all the Maps tables
 local defaults = {
-	addonVersion = 0,				-- AddOnVersion value in use the last time these tables were loaded
+	-- Table control values
+	addOnVersion = 0,				-- AddOnVersion value in use the last time these tables were loaded
 	apiVersion = 0,					-- ESO API Version in use the last time these tables were loaded
 	numMaps = 0,					-- Number of maps in the world the last time these tables were loaded
+	-- Reference tables
 	coord = coordByIndex,
 	info = infoByIndex,
-	inxmid = indexByMapId,
+	inxmid = indexById,
 	inxnam = indexByName,
 	midinx = mapIdByIndex,
 	midnam = mapIdByName,
@@ -53,9 +57,43 @@ local defaults = {
 }
 
 --[[-------------------------------------------------------------------------------------------------------------------------------
+Get the MapTables manifest information and update our control entry with it. Necessary to get the AddOnVersion: directive value.
+---------------------------------------------------------------------------------------------------------------------------------]]
+local LM = LibManifest
+assert( LM, ADDON_NAME.. ": The game refused to create a link to LibManifest!" )
+
+local manifest = {
+	-- These values are retrieved from existing manifest directives
+	author,			-- From the Author: directive Without any special characters
+	description,	-- From the Description: directive
+	fileName,		-- The name of this add-on's folder and manifest file
+	isEnabled,		-- ESO boolean value
+	isOutOfDate,	-- ESO boolean value
+	loadState,		-- ESO load state (i.e. loaded; not loaded)
+	title,			-- From the Title: directive without any special characters
+
+	-- These values are retrieved from 100026 manifest directives
+	addOnVersion,	-- From the AddOnVersion: directive
+	filePath,		-- Path to this add-on's folder/directory
+
+	-- These values are retrieved from 100027 manifest directives
+	isLibrary,		-- From the IsLibrary: directive
+}
+				
+manifest = LM:Create( ADDON_NAME )
+assert( manifest, ADDON_NAME.. ": LibManifest did not return an information table!" )
+
+-- Update the global control entry
+addon.manifest = manifest
+_G[ADDON_NAME] = addon
+
+--[[-------------------------------------------------------------------------------------------------------------------------------
 Obtain a local link to "LibGPS2" and define a measurements table for its use.
 ---------------------------------------------------------------------------------------------------------------------------------]]
-local GPS = LibStub:GetLibrary( "LibGPS2", SILENT )
+local GPS = LibGPS2
+if not GPS and LibStub then
+	GPS = LibStub:GetLibrary( "LibGPS2", SILENT )
+end
 assert( GPS, ADDON_NAME.. ": LibStub refused to create a link to LibGPS2!" )
 
 local measurement = {
@@ -68,66 +106,46 @@ local measurement = {
 }
 
 --[[-------------------------------------------------------------------------------------------------------------------------------
-Local functions to load the Maps reference tables.
+Local functions to load the Maps reference tables and to measure the global x,y coordinates for all zones in this Map.
 ---------------------------------------------------------------------------------------------------------------------------------]]
--- Loads the data for one Map into the reference tables
-local function LoadOneMap( mdx: number )			-- The Map Index of this Map
-	-- Get the reference information for this mapIndex
-	local name, mtype, ctype, zid = GetMapInfo( mdx )
+-- Local references to game and/or Library API functions for speed
+local GMI = GetMapInfo
+local GCMId = GetCurrentMapId
+local SM2MLI = SetMapToMapListIndex
 
-	-- Load the reference tables for this Map
-	indexByName[name] = mdx											-- Indexes table
-	infoByIndex[mdx] = { mapType = mtype, content = ctype }			-- Info table
-	if zid and type( zid ) == "number" and zid > 0 then				-- Map Index to Zone Identifier xref table
-		zoneIdByIndex[mdx] = zid
-	end
-
-	-- Get the global x,y coordinate values
-	SetMapToMapListIndex( mdx )										-- Change maps
-	-- Verify we point to the same map before we generate cross-reference tables
-	assert( GetCurrentMapIndex() == mdx, "MapTables:LoadOneMap, mapIndexes are not equal!" )
-	
-	measurement = GPS:GetCurrentMapMeasurements() or {}				-- "or {}" because The Aurbis map returns nil!
-	coordByIndex[mdx] = { measurement.offsetX or 0, measurement.offsetY or 0 }
-
-	-- Generate the Map Identifier reference and cross-reference tables for this Map.
-	local mid = GetCurrentMapId()		-- Must be executed after we change game maps!
-	if mid and mid > 0 then				-- Generate table entries only for valid Map Identifiers!
-		indexByMapId[mid] = mdx
-		mapIdByIndex[mdx] = mid
-		mapIdByName[name] = mid
-		nameByMapId[mid] = name
-	end
-end
-
--- Resets and loads the reference tables for every Map in the world
-local function LoadAllMaps( tmax: number )			-- tmax := The number of maps in the world
+-- Resets and loads the reference tables for every Map in the world that has valid information for it
+local function LoadAllMaps( tmax: number )		-- tmax := The number of maps in the world
 	-- Reset the reference tables
 	coordByIndex = {}
-	indexByMapId = {}
+	indexById = {}
 	indexByName = {}
 	infoByIndex = {}
 	mapIdByIndex = {}
 	mapIdByName = {}
-	nameByMapId = {}
+	nameById = {}
 	zoneIdByIndex = {}
 	-- Loop through all the maps
-	local mdx										-- mapIndex
+	local mdx									-- mapIndex
 	for mdx = 1, tmax do
-		LoadOneMap( mdx )							-- Load the data for one Map
-	end
-end
-
--- Updates any missing entries in each reference table for every Map in the world
-local function UpdateAllMaps( tmax: number )	-- tmax := The number of maps in the world
-	-- Loop through all the maps
-	local mdx										-- mapIndex
-	for mdx = 1, tmax do
-		if not coordByIndex[mdx] or coordByIndex[mdx] == {}
-		or not infoByIndex[mdx] or infoByIndex[mdx] == {}
-		or not mapIdByIndex[mdx] or mapIdByIndex[mdx] == 0
-		or not zoneIdByIndex[mdx] or zoneIdByIndex[mdx] == 0 then
-			LoadOneMap( mdx )						-- Load the data for one Map
+		-- Get the reference information for this mapIndex
+		local name, mtype, ctype, zid = GMI( mdx )
+		-- Load the reference tables for this Map
+		indexByName[name] = mdx										-- Indexes table
+		infoByIndex[mdx] = { mapType = mtype, content = ctype }		-- Info table
+		if zid and type( zid ) == "number" and zid > 0 then			-- Map Index to Zone Identifier xref table
+			zoneIdByIndex[mdx] = zid
+		end
+		-- Get the global x,y coordinate values
+		SM2MLI( mdx )					-- Change maps
+		measurement = GPS:GetCurrentMapMeasurements() or {}			-- "or {}" because The Aurbis map returns nil!
+		coordByIndex[mdx] = { measurement.offsetX or 0, measurement.offsetY or 0 }
+		-- Generate the Map Identifier reference and cross-reference tables
+		local mid = GCMId()				-- Must be executed after we change game maps!
+		if mid and mid > 0 then			-- Generate table entries only for valid Map Identifiers!
+			indexById[mid] = mdx
+			mapIdByIndex[mdx] = mid
+			mapIdByName[name] = mid
+			nameById[mid] = name
 		end
 	end
 end
@@ -161,11 +179,11 @@ local function OnAddonLoaded( event, name )
 	--Update the Maps reference tables from their Saved Data variables
 	coordByIndex = sv.coord
 	infoByIndex = sv.info
-	indexByMapId = sv.inxmid
+	indexById = sv.inxmid
 	indexByName = sv.inxnam
 	mapIdByIndex = sv.midinx
 	mapIdByName = sv.midnam
-	nameByMapId = sv.nammid
+	nameById = sv.nammid
 	zoneIdByIndex = sv.zidinx
 
 	-- Wait for a player to become active; LibGPS2 needs this
@@ -176,73 +194,73 @@ local function OnAddonLoaded( event, name )
 	)
 	assert( GPS:IsReady(), ADDON_NAME.. ": LibGPS2 cannot function until a player is active!" )
 
-	-- Save wherever we are in the world
-	SetMapToPlayerLocation()					-- Set the current map to wherever we are in the world
-	GPS:PushCurrentMap()						-- Save the current map settings
-
 	-- Get the current values for the AddOnVersion, APIVersion, and number of maps
-	local addonVersion = addon.addonVersion
+	local addOnVersion = manifest.addOnVersion
 	local currentAPI = GetAPIVersion()
 	local numMaps = GetNumMaps()
-	-- If the APIVersion, the AddOnVersion, or the number of maps changed, reload all Maps tables
+
+	-- If the AddOnVersion, the APIVersion, or the number of maps has changed, reload all the tables
 	if currentAPI ~= sv.apiVersion
-	or addonVersion ~= sv.addonVersion
-	or numMaps ~= sv.numMaps then
+	or addOnVersion ~= sv.addOnVersion
+	or numMaps ~= sv.numMaps
+	-- If any Maps tables are missing or empty, reload all of the Maps tables
+	or not coordByIndex or coordByIndex == {}
+	or not indexById or indexById == {}
+	or not indexByName or indexByName == {}
+	or not infoByIndex or infoByIndex == {}
+	or not mapIdByIndex or mapIdByIndex == {}
+	or not mapIdByName or mapIdByName == {}
+	or not nameById or nameById == {}
+	or not zoneIdByIndex or zoneIdByIndex == {} then
+		-- Save wherever we are in the world
+		SetMapToPlayerLocation()		-- Set the current map to wherever we are in the world
+		GPS:PushCurrentMap()			-- Save the current map settings
+		-- Reload all the Map tables
 		LoadAllMaps( numMaps )
-	-- If any Maps tables are missing from or empty, reload all Maps tables
-	elseif not coordByIndex or coordByIndex == {}
-		or not indexByMapId or indexByMapId == {}
-		or not indexByName or indexByName == {}
-		or not infoByIndex or infoByIndex == {}
-		or not mapIdByIndex or mapIdByIndex == {}
-		or not mapIdByName or mapIdByName == {}
-		or not nameByMapId or nameByMapId == {}
-		or not zoneIdByIndex or zoneIdByIndex == {} then
-			LoadAllMaps( numMaps )
-	-- Otherwise, update all Maps tables with missing and/or new entries
-	else
-		UpdateAllMaps( numMaps )
+		-- Put us back to wherever we were in the world
+		GPS:PopCurrentMap()
+		-- Update the Saved Data control variables
+		sv.addOnVersion = addOnVersion
+		sv.apiVersion = currentAPI
+		sv.numMaps = numMaps
+		-- Transfer the loaded reference tables back into their Saved Data variables
+		sv.coord = coordByIndex
+		sv.info = infoByIndex
+		sv.inxmid = indexById
+		sv.inxnam = indexByName
+		sv.midinx = mapIdByIndex
+		sv.midnam = mapIdByName
+		sv.nammid = nameById
+		sv.zidinx = zoneIdByIndex
+		-- Create new or update existing Saved Variables tables in the "...\SavedVariables\MapTables.lua" file
+		_G[savedVarsFile] = sv
 	end
-
-	-- Put us back to wherever we were in the world
-	GPS:PopCurrentMap()
-
-	-- Transfer the loaded or updated reference tables back into their Saved Data variables
-	sv.coord = coordByIndex
-	sv.info = infoByIndex
-	sv.inxmid = indexByMapId
-	sv.inxnam = indexByName
-	sv.midinx = mapIdByIndex
-	sv.midnam = mapIdByName
-	sv.nammid = nameByMapId
-	sv.zidinx = zoneIdByIndex
-	-- Update the Saved Data control variables. Note that these variable values do not change for table Updates
-	sv.addonVersion = addonVersion
-	sv.apiVersion = currentAPI
-	sv.numMaps = numMaps
-	-- Create a new or update an existing Saved Variables data file (e.g. "...\SavedVariables\MapTables.lua")
-	_G[savedVarsFile] = sv
 end
 
 --[[-------------------------------------------------------------------------------------------------------------------------------
 MapTables public API function definitions. MapTables does not duplicate any of the game API functions listed below:
 
 The game API documentation defines these Map Index API functions.
-	Line 10260: * GetCyrodiilMapIndex()
-	Line 10263: * GetImperialCityMapIndex()
-	Line 10272: * GetMapNameByIndex(*luaindex* _mapIndex_)
-	Line 10377: * GetAutoMapNavigationCommonZoomOutMapIndex()
+	* GetCyrodiilMapIndex()
+	* GetImperialCityMapIndex()
+	* GetMapNameByIndex(*luaindex* _mapIndex_)
+	* GetAutoMapNavigationCommonZoomOutMapIndex()
 
 The game API documentation defines these Map Identifer API functions.
-	Line 10306: * GetMapNumTilesForMapId(*integer* _mapId_)
-	Line 10309: * GetMapTileTextureForMapId(*integer* _mapId_, *luaindex* _tileIndex_)
+	* GetMapNumTilesForMapId(*integer* _mapId_)
+	* GetMapTileTextureForMapId(*integer* _mapId_, *luaindex* _tileIndex_)
 
-The game API documentation defines these functions for getting the identifier, index, and/or name values for the current Map. 
-MapTables uses the "SetMapToMapListIndex()" game API function to traverse games Maps by their Map Indexes.
-	Line 10251: * GetCurrentMapIndex()
-	Line 10254: * GetCurrentMapId()
-	Line 10312: * GetMapName()
+The game API documentation defines these functions for getting the identifier, index, and/or name values from the current Map. 
+	* GetCurrentMapIndex()
+	* GetCurrentMapId()
+	* GetCurrentMapZoneIndex()
+	* GetCurrentSubZonePOIIndices()
+	* GetMapName()
+	* GetMapType()
+	* GetMapContentType()
+	* GetMapFilterType()
 
+MapTables uses the "SetMapToMapListIndex()" game API function to traverse game Maps by their Map Indexes.
 ---------------------------------------------------------------------------------------------------------------------------------]]
 
 -- Get the content type for this map
@@ -272,7 +290,7 @@ end
 
 -- Get the Map Index for this Map Identifier
 function MapTables:GetIndexById( mapId: number )
-	return indexByMapId[mapId] or nil
+	return indexById[mapId] or nil
 end
 
 -- Get the map type for this Map
@@ -282,7 +300,7 @@ end
 
 -- Get the Map Name for this Map Identifier
 function MapTables:GetNameById( mapId: number )
-	return nameByMapId[mapId] or nil
+	return nameById[mapId] or nil
 end
 
 -- Get the equivalent Zone Identifier for this Map
