@@ -1,4 +1,4 @@
-local lib = LibMapTables
-local internal = lib.internal
-local logger = internal.logger
+local lib = LibLoadMapsZonesQuests
+local linkto = lib.linkto
+local logger = linkto.logger
 
