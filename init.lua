@@ -24,3 +24,5 @@ lib.linkto = {
             questtables = {}
         }
     end
+
+    lib.linkto.savedata = savedata
