@@ -23,6 +23,11 @@ lib.linkto = {
             zonetables = (),
             questtables = {}
         }
+        
+        self.savedata = savedata
     end
+    
 
-    lib.linkto.savedata = savedata
+}
+
+    
